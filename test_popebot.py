@@ -40,6 +40,7 @@ class BlueskyPoetryBot:
         self.state = {'position': 0}
         self.access_jwt = None
         self.refresh_jwt = None
+        self.did = None
         self.led = MockLED()
 
         self.load_config()
@@ -106,6 +107,7 @@ class BlueskyPoetryBot:
                 auth_response = response.json()
                 self.access_jwt = auth_response['accessJwt']
                 self.refresh_jwt = auth_response['refreshJwt']
+                self.did = auth_response['did']
                 print("Bluesky authentication successful")
                 return True
             else:
@@ -129,6 +131,7 @@ class BlueskyPoetryBot:
                 auth_response = response.json()
                 self.access_jwt = auth_response['accessJwt']
                 self.refresh_jwt = auth_response['refreshJwt']
+                self.did = auth_response['did']
                 print("Session refreshed successfully")
                 return True
             else:
@@ -137,6 +140,20 @@ class BlueskyPoetryBot:
         except Exception as e:
             print(f"Refresh error: {e}")
             return self.authenticate_bluesky()
+
+    def sanitize_text(self, text):
+        """Replace curly quotes and other problematic characters with ASCII equivalents"""
+        replacements = [
+            ('\u2019', "'"),  # Right single quote -> apostrophe
+            ('\u2018', "'"),  # Left single quote -> apostrophe
+            ('\u201c', '"'),  # Left double quote -> straight quote
+            ('\u201d', '"'),  # Right double quote -> straight quote
+            ('\u2014', '--'), # Em dash
+            ('\u2013', '-'),  # En dash
+        ]
+        for old, new in replacements:
+            text = text.replace(old, new)
+        return text
 
     def create_post(self, text):
         if not self.access_jwt:
@@ -149,10 +166,13 @@ class BlueskyPoetryBot:
             "Content-Type": "application/json"
         }
 
+        # Sanitize text to avoid JSON encoding issues
+        text = self.sanitize_text(text)
+
         iso_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         record = {
-            "repo": self.config['bluesky_handle'],
+            "repo": self.did,
             "collection": "app.bsky.feed.post",
             "record": {
                 "$type": "app.bsky.feed.post",

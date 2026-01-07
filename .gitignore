@@ -1,0 +1,8 @@
+# Credentials
+config.json
+
+# Runtime state
+state.json
+
+# macOS
+.DS_Store

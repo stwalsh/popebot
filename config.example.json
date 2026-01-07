@@ -1,0 +1,7 @@
+{
+    "wifi_ssid": "YourWiFiName",
+    "wifi_password": "YourWiFiPassword",
+    "bluesky_handle": "yourhandle.bsky.social",
+    "bluesky_password": "xxxx-xxxx-xxxx-xxxx",
+    "interval_minutes": 60
+}

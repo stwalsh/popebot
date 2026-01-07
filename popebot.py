@@ -15,6 +15,7 @@ class BlueskyPoetryBot:
         self.state = {'position': 0}
         self.access_jwt = None
         self.refresh_jwt = None
+        self.did = None
 
         # Status LED
         self.led = Pin("LED", Pin.OUT)
@@ -133,6 +134,7 @@ class BlueskyPoetryBot:
                 auth_response = response.json()
                 self.access_jwt = auth_response['accessJwt']
                 self.refresh_jwt = auth_response['refreshJwt']
+                self.did = auth_response['did']
                 print("Bluesky authentication successful")
                 return True
             else:
@@ -164,6 +166,7 @@ class BlueskyPoetryBot:
                 auth_response = response.json()
                 self.access_jwt = auth_response['accessJwt']
                 self.refresh_jwt = auth_response['refreshJwt']
+                self.did = auth_response['did']
                 print("Session refreshed successfully")
                 return True
             else:
@@ -176,6 +179,20 @@ class BlueskyPoetryBot:
         finally:
             if 'response' in locals():
                 response.close()
+
+    def sanitize_text(self, text):
+        """Replace curly quotes and other problematic characters with ASCII equivalents"""
+        replacements = [
+            ('\u2019', "'"),  # Right single quote -> apostrophe
+            ('\u2018', "'"),  # Left single quote -> apostrophe
+            ('\u201c', '"'),  # Left double quote -> straight quote
+            ('\u201d', '"'),  # Right double quote -> straight quote
+            ('\u2014', '--'), # Em dash
+            ('\u2013', '-'),  # En dash
+        ]
+        for old, new in replacements:
+            text = text.replace(old, new)
+        return text
 
     def create_post(self, text):
         """Create a post on Bluesky"""
@@ -190,13 +207,16 @@ class BlueskyPoetryBot:
             "Content-Type": "application/json"
         }
 
+        # Sanitize text to avoid JSON encoding issues
+        text = self.sanitize_text(text)
+
         # Create timestamp in ISO 8601 format
         t = time.gmtime()
         iso_time = "{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.000Z".format(
             t[0], t[1], t[2], t[3], t[4], t[5])
 
         record = {
-            "repo": self.config['bluesky_handle'],
+            "repo": self.did,
             "collection": "app.bsky.feed.post",
             "record": {
                 "$type": "app.bsky.feed.post",
@@ -206,7 +226,8 @@ class BlueskyPoetryBot:
         }
 
         try:
-            response = requests.post(post_url, json=record, headers=headers)
+            payload = json.dumps(record)
+            response = requests.post(post_url, data=payload, headers=headers)
 
             if response.status_code == 200:
                 print(f"Posted: {text[:50]}...")
@@ -220,6 +241,7 @@ class BlueskyPoetryBot:
                 return False
             else:
                 print(f"Post failed: {response.status_code}")
+                print(response.text)
                 return False
 
         except Exception as e:

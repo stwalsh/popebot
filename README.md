@@ -25,7 +25,7 @@ mip.install("urequests")
 
 ### 3. Configure
 
-Edit `config.json` with your credentials:
+Copy `config.example.json` to `config.json` and add your credentials:
 
 ```json
 {
@@ -43,7 +43,7 @@ Use an App Password from Bluesky settings, not your main password.
 
 Copy these files to the Pico's filesystem:
 
-- `boot.py`
+- `main.py`
 - `popebot.py`
 - `config.json`
 - `couplets.txt`
@@ -85,8 +85,9 @@ Test without a Pico using the included test harness:
 | File | Description |
 |------|-------------|
 | `popebot.py` | Main bot code |
-| `boot.py` | Auto-start on power-up |
-| `config.json` | WiFi and Bluesky credentials |
+| `main.py` | Auto-start on power-up |
+| `config.example.json` | Template for credentials |
+| `config.json` | Your WiFi and Bluesky credentials (create from template) |
 | `couplets.txt` | 6,616 couplets from Pope's works |
 | `state.json` | Tracks position (created automatically) |
 | `test_popebot.py` | Desktop test harness |
