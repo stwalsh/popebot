@@ -106,17 +106,37 @@ class BlueskyPoetryBot:
             print("WiFi connection failed")
             return False
 
-    def sync_time(self):
-        """Sync time with NTP server"""
-        try:
-            print("Syncing time with NTP...")
-            ntptime.settime()
-            t = time.gmtime()
-            print(f"Time synced: {t[0]}-{t[1]:02d}-{t[2]:02d} {t[3]:02d}:{t[4]:02d}:{t[5]:02d} UTC")
-            return True
-        except Exception as e:
-            print(f"NTP sync failed: {e}")
-            return False
+    def time_is_valid(self):
+        """Check if system time looks reasonable (year 2024 or later)"""
+        t = time.gmtime()
+        return t[0] >= 2024
+
+    def sync_time(self, retries=5):
+        """Sync time with NTP server, with retries"""
+        for attempt in range(retries):
+            try:
+                print(f"Syncing time with NTP (attempt {attempt + 1}/{retries})...")
+                ntptime.settime()
+                t = time.gmtime()
+                # Sanity check - year should be 2024 or later
+                if t[0] >= 2024:
+                    print(f"Time synced: {t[0]}-{t[1]:02d}-{t[2]:02d} {t[3]:02d}:{t[4]:02d}:{t[5]:02d} UTC")
+                    return True
+                else:
+                    print(f"Time sync returned invalid year: {t[0]}")
+            except Exception as e:
+                print(f"NTP sync failed: {e}")
+            if attempt < retries - 1:
+                time.sleep(2)
+        print("NTP sync failed after all retries")
+        return False
+
+    def ensure_time_valid(self):
+        """Make sure time is valid, re-sync if needed"""
+        if not self.time_is_valid():
+            print("Clock looks wrong, re-syncing...")
+            return self.sync_time()
+        return True
 
     def authenticate_bluesky(self):
         """Authenticate with Bluesky ATP"""
@@ -292,6 +312,12 @@ class BlueskyPoetryBot:
                         continue
                     self.sync_time()
 
+                # Verify time is valid before posting
+                if not self.ensure_time_valid():
+                    print("Cannot verify time, skipping this cycle")
+                    time.sleep(60)
+                    continue
+
                 # Authenticate if needed
                 if not self.access_jwt:
                     if not self.authenticate_bluesky():
@@ -344,7 +370,10 @@ def main():
         print("Could not connect to WiFi")
         return
 
-    bot.sync_time()
+    if not bot.sync_time():
+        print("Could not sync time - refusing to post with wrong clock")
+        return
+
     bot.run_continuous()
 
 
