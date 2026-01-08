@@ -33,6 +33,9 @@ class BlueskyPoetryBot:
         # That's acceptable - better to reset than hang forever
         self.HTTP_TIMEOUT = 20
 
+        # WiFi connection timeout (seconds) - mesh networks can be slow
+        self.WIFI_TIMEOUT = 45
+
         # Load configuration and state
         self.load_config()
         self.load_state()
@@ -115,7 +118,7 @@ class BlueskyPoetryBot:
             wlan.connect(self.config['wifi_ssid'], self.config['wifi_password'])
 
             # Wait for connection with timeout
-            timeout = 20
+            timeout = self.WIFI_TIMEOUT
             while not wlan.isconnected() and timeout > 0:
                 self.feed_watchdog()
                 time.sleep(1)
