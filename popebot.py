@@ -309,7 +309,7 @@ class BlueskyPoetryBot:
 
     def sleep_with_heartbeat(self, total_seconds):
         """Sleep in chunks with periodic heartbeat blinks and watchdog feeds"""
-        chunk_seconds = 30  # Wake up every 30 seconds
+        chunk_seconds = 5  # Wake up every 5 seconds (must be < 8s watchdog timeout)
         elapsed = 0
         while elapsed < total_seconds:
             sleep_time = min(chunk_seconds, total_seconds - elapsed)
