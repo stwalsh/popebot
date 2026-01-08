@@ -4,7 +4,7 @@ import time
 import ntptime
 import network
 import gc
-from machine import Pin, WDT
+from machine import Pin, WDT, reset
 
 class BlueskyPoetryBot:
     def __init__(self, config_file='config.json', couplets_file='couplets.txt', state_file='state.json'):
@@ -23,6 +23,10 @@ class BlueskyPoetryBot:
 
         # Watchdog timer - resets device if not fed within 8 seconds
         self.wdt = None  # Initialized later in run_continuous
+
+        # Failure tracking for hard reset
+        self.consecutive_wifi_failures = 0
+        self.MAX_WIFI_FAILURES = 5  # Hard reset after this many consecutive failures
 
         # Load configuration and state
         self.load_config()
@@ -60,6 +64,7 @@ class BlueskyPoetryBot:
 
     def get_next_couplet(self):
         """Read the next couplet from file without loading everything into memory"""
+        MAX_LINES = 20  # Safety limit to prevent RAM exhaustion
         try:
             with open(self.couplets_file, 'r') as f:
                 f.seek(self.state['position'])
@@ -81,6 +86,10 @@ class BlueskyPoetryBot:
                         return '\n'.join(lines)
                     else:
                         lines.append(line)
+                        if len(lines) > MAX_LINES:
+                            print(f"Warning: Couplet exceeded {MAX_LINES} lines, truncating")
+                            self.state['position'] = f.tell()
+                            return '\n'.join(lines)
 
         except OSError:
             print(f"Error: Could not read {self.couplets_file}")
@@ -219,6 +228,7 @@ class BlueskyPoetryBot:
 
     def sanitize_text(self, text):
         """Replace curly quotes and other problematic characters with ASCII equivalents"""
+        # Known replacements for common typographic characters
         replacements = [
             ('\u2019', "'"),  # Right single quote -> apostrophe
             ('\u2018', "'"),  # Left single quote -> apostrophe
@@ -226,10 +236,20 @@ class BlueskyPoetryBot:
             ('\u201d', '"'),  # Right double quote -> straight quote
             ('\u2014', '--'), # Em dash
             ('\u2013', '-'),  # En dash
+            ('\u2026', '...'), # Ellipsis
+            ('\u00e6', 'ae'), # ae ligature
+            ('\u0153', 'oe'), # oe ligature
         ]
         for old, new in replacements:
             text = text.replace(old, new)
-        return text
+
+        # Aggressive fallback: strip any remaining non-ASCII characters
+        cleaned = []
+        for char in text:
+            if ord(char) < 128:
+                cleaned.append(char)
+            # Skip non-ASCII characters entirely
+        return ''.join(cleaned)
 
     def create_post(self, text):
         """Create a post on Bluesky"""
@@ -247,8 +267,13 @@ class BlueskyPoetryBot:
         # Sanitize text to avoid JSON encoding issues
         text = self.sanitize_text(text)
 
-        # Create timestamp in ISO 8601 format
+        # Verify time is still valid right before posting
         t = time.gmtime()
+        if t[0] < 2024:
+            print(f"Clock invalid ({t[0]}), refusing to post with wrong timestamp")
+            return False
+
+        # Create timestamp in ISO 8601 format
         iso_time = "{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.000Z".format(
             t[0], t[1], t[2], t[3], t[4], t[5])
 
@@ -343,10 +368,10 @@ class BlueskyPoetryBot:
         interval = self.config.get('interval_minutes', 10)
         print(f"Starting continuous mode ({interval} min intervals)")
 
-        # Enable watchdog timer (8 second timeout - hardware max is ~8.3s)
-        # If code hangs for >8s without feeding, device will reset
-        print("Enabling watchdog timer...")
-        self.wdt = WDT(timeout=8000)
+        # Enable watchdog if not already enabled (may be initialized in main())
+        if not self.wdt:
+            print("Enabling watchdog timer...")
+            self.wdt = WDT(timeout=8000)
         self.feed_watchdog()
 
         while True:
@@ -359,8 +384,15 @@ class BlueskyPoetryBot:
                     print("WiFi disconnected, reconnecting...")
                     self.led.off()
                     if not self.connect_wifi():
+                        self.consecutive_wifi_failures += 1
+                        print(f"WiFi failure {self.consecutive_wifi_failures}/{self.MAX_WIFI_FAILURES}")
+                        if self.consecutive_wifi_failures >= self.MAX_WIFI_FAILURES:
+                            print("Too many WiFi failures, performing hard reset...")
+                            time.sleep(1)
+                            reset()
                         self.sleep_with_heartbeat(60)
                         continue
+                    self.consecutive_wifi_failures = 0  # Reset counter on success
                     self.sync_time()
 
                 self.feed_watchdog()
@@ -427,6 +459,11 @@ def main():
     if not bot.connect_wifi():
         print("Could not connect to WiFi")
         return
+
+    # Enable watchdog early - protects NTP sync and auth phases
+    print("Enabling watchdog timer...")
+    bot.wdt = WDT(timeout=8000)
+    bot.feed_watchdog()
 
     if not bot.sync_time():
         print("Could not sync time - refusing to post with wrong clock")
