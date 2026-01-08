@@ -349,6 +349,15 @@ class BlueskyPoetryBot:
             elapsed += sleep_time
             self.feed_watchdog()
             self.heartbeat()
+
+            # Keep WiFi alive - check every 60 seconds to prevent mesh dropout
+            if elapsed % 60 == 0:
+                wlan = network.WLAN(network.STA_IF)
+                if not wlan.isconnected():
+                    print("WiFi dropped during sleep, reconnecting...")
+                    self.led.off()
+                    self.connect_wifi()
+
             # Print progress every 5 minutes
             if elapsed % 300 == 0:
                 remaining = total_seconds - elapsed
