@@ -16,7 +16,9 @@ Flash MicroPython to your Pico 2 W. Download the firmware from [micropython.org]
 
 ### 2. Install urequests
 
-Connect to the Pico via Thonny or mpremote and run:
+The easiest way is via Thonny: **Tools > Manage packages**, search for `urequests`, and install it.
+
+Or via the REPL:
 
 ```python
 import mip
