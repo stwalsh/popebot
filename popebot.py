@@ -4,12 +4,7 @@ import time
 import ntptime
 import network
 import gc
-import socket
 from machine import Pin, WDT, reset
-
-# Set global socket timeout to prevent NTP and other socket ops from hanging
-# Must be under 8s watchdog but enough for Bluesky API
-socket.setdefaulttimeout(7)
 
 class BlueskyPoetryBot:
     def __init__(self, config_file='config.json', couplets_file='couplets.txt', state_file='state.json'):
