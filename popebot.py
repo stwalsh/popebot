@@ -28,10 +28,9 @@ class BlueskyPoetryBot:
         self.consecutive_wifi_failures = 0
         self.MAX_WIFI_FAILURES = 5  # Hard reset after this many consecutive failures
 
-        # HTTP request timeout (seconds) - prevents hanging on slow/dead connections
-        # Note: If this exceeds watchdog (8s), watchdog will reset on slow requests
-        # That's acceptable - better to reset than hang forever
-        self.HTTP_TIMEOUT = 20
+        # HTTP request timeout (seconds) - must be LESS than watchdog (8s)
+        # so requests fail gracefully before watchdog hard-resets
+        self.HTTP_TIMEOUT = 5
 
         # WiFi connection timeout (seconds) - mesh networks can be slow
         self.WIFI_TIMEOUT = 45
