@@ -2,6 +2,8 @@
 
 A MicroPython bot that posts Alexander Pope's poetry couplets to Bluesky, one at a time, from a Raspberry Pi Pico 2 W.
 
+While this is set up for Pope, it works for any text - swap out `couplets.txt` with your own content (entries separated by `---`) and you've got a bot for any poet, quote collection, or text you like.
+
 ## Requirements
 
 - Raspberry Pi Pico 2 W (must be the W variant for WiFi)
