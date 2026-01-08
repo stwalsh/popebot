@@ -61,7 +61,12 @@ The bot will:
 4. Authenticate with Bluesky
 5. Post one couplet per hour until complete
 
-The LED stays on when connected. It blinks 2x after a successful post, 5x on error.
+LED status:
+- **Solid on** = WiFi connected
+- **Quick blink every 5s** = heartbeat (bot is alive and waiting)
+- **2 blinks** = successful post
+- **5 blinks** = failed post
+- **10 blinks** = error in main loop
 
 ## Testing on Desktop
 
@@ -103,6 +108,14 @@ Test without a Pico using the included test harness:
 - Only one couplet is loaded into memory at a time
 - Session tokens are refreshed automatically when they expire
 - Progress survives power loss
+
+## Responsible Use
+
+This bot posts automatically, so please:
+
+- **Respect Bluesky's terms of service** - Don't use it for spam or harassment
+- **Keep intervals reasonable** - Hourly is fine; don't flood the timeline
+- **Use public domain or your own content** - Pope's works are out of copyright, but check rights for other texts
 
 ## Resetting
 
