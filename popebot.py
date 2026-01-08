@@ -340,6 +340,18 @@ class BlueskyPoetryBot:
         if self.wdt:
             self.wdt.feed()
 
+    def active_ping(self):
+        """Send a tiny request to keep mesh network connection alive"""
+        try:
+            self.feed_watchdog()
+            res = requests.head("http://www.google.com", timeout=self.HTTP_TIMEOUT)
+            res.close()
+            print("  (mesh ping ok)")
+            return True
+        except:
+            print("  (mesh ping failed)")
+            return False
+
     def sleep_with_heartbeat(self, total_seconds):
         """Sleep in chunks with periodic heartbeat blinks and watchdog feeds"""
         chunk_seconds = 5  # Wake up every 5 seconds (must be < 8s watchdog timeout)
@@ -351,18 +363,15 @@ class BlueskyPoetryBot:
             self.feed_watchdog()
             self.heartbeat()
 
-            # Keep WiFi alive - check every 60 seconds to prevent mesh dropout
-            if elapsed % 60 == 0:
-                wlan = network.WLAN(network.STA_IF)
-                if not wlan.isconnected():
-                    print("WiFi dropped during sleep, reconnecting...")
-                    self.led.off()
-                    self.connect_wifi()
-
-            # Print progress every 5 minutes
-            if elapsed % 300 == 0:
+            # Active ping every 5 minutes to keep mesh network connection alive
+            if elapsed % 300 == 0 and elapsed > 0:
                 remaining = total_seconds - elapsed
                 print(f"  ... {remaining // 60} min remaining")
+                if not self.active_ping():
+                    # Ping failed - force reconnect
+                    print("  Forcing WiFi reconnect...")
+                    self.led.off()
+                    self.connect_wifi()
 
     def post_next_couplet(self):
         """Post the next couplet from the file"""
