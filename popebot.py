@@ -8,7 +8,8 @@ import socket
 from machine import Pin, WDT, reset
 
 # Set global socket timeout to prevent NTP and other socket ops from hanging
-socket.setdefaulttimeout(5)
+# Must be under 8s watchdog but enough for Bluesky API
+socket.setdefaulttimeout(7)
 
 class BlueskyPoetryBot:
     def __init__(self, config_file='config.json', couplets_file='couplets.txt', state_file='state.json'):
@@ -34,7 +35,7 @@ class BlueskyPoetryBot:
 
         # HTTP request timeout (seconds) - must be LESS than watchdog (8s)
         # so requests fail gracefully before watchdog hard-resets
-        self.HTTP_TIMEOUT = 5
+        self.HTTP_TIMEOUT = 7
 
         # WiFi connection timeout (seconds) - mesh networks can be slow
         self.WIFI_TIMEOUT = 45
