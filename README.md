@@ -108,6 +108,7 @@ Test without a Pico using the included test harness:
 - Only one couplet is loaded into memory at a time
 - Session tokens are refreshed automatically when they expire
 - Progress survives power loss
+- Includes watchdog timer, automatic WiFi reconnection, and keep-alive for mesh networks
 
 ## Responsible Use
 
