@@ -28,6 +28,9 @@ class BlueskyPoetryBot:
         self.consecutive_wifi_failures = 0
         self.MAX_WIFI_FAILURES = 5  # Hard reset after this many consecutive failures
 
+        # HTTP request timeout (seconds) - prevents hanging on slow/dead connections
+        self.HTTP_TIMEOUT = 10
+
         # Load configuration and state
         self.load_config()
         self.load_state()
@@ -174,7 +177,7 @@ class BlueskyPoetryBot:
         }
 
         try:
-            response = requests.post(auth_url, json=auth_data)
+            response = requests.post(auth_url, json=auth_data, timeout=self.HTTP_TIMEOUT)
 
             if response.status_code == 200:
                 auth_response = response.json()
@@ -188,7 +191,7 @@ class BlueskyPoetryBot:
                 return False
 
         except Exception as e:
-            print(f"Authentication error: {e}")
+            print(f"Authentication error (timeout or network): {e}")
             return False
         finally:
             if 'response' in locals():
@@ -206,7 +209,7 @@ class BlueskyPoetryBot:
         }
 
         try:
-            response = requests.post(refresh_url, headers=headers)
+            response = requests.post(refresh_url, headers=headers, timeout=self.HTTP_TIMEOUT)
 
             if response.status_code == 200:
                 auth_response = response.json()
@@ -220,7 +223,7 @@ class BlueskyPoetryBot:
                 return self.authenticate_bluesky()
 
         except Exception as e:
-            print(f"Refresh error: {e}")
+            print(f"Refresh error (timeout or network): {e}")
             return self.authenticate_bluesky()
         finally:
             if 'response' in locals():
@@ -289,7 +292,7 @@ class BlueskyPoetryBot:
 
         try:
             payload = json.dumps(record)
-            response = requests.post(post_url, data=payload, headers=headers)
+            response = requests.post(post_url, data=payload, headers=headers, timeout=self.HTTP_TIMEOUT)
 
             if response.status_code == 200:
                 print(f"Posted: {text[:50]}...")
@@ -307,7 +310,7 @@ class BlueskyPoetryBot:
                 return False
 
         except Exception as e:
-            print(f"Post error: {e}")
+            print(f"Post error (timeout or network): {e}")
             return False
         finally:
             if 'response' in locals():
