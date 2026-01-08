@@ -176,6 +176,7 @@ class BlueskyPoetryBot:
 
     def authenticate_bluesky(self):
         """Authenticate with Bluesky ATP"""
+        gc.collect()  # Clean heap before network call
         auth_url = "https://bsky.social/xrpc/com.atproto.server.createSession"
 
         auth_data = {
@@ -199,16 +200,19 @@ class BlueskyPoetryBot:
 
         except Exception as e:
             print(f"Authentication error (timeout or network): {e}")
+            gc.collect()  # Clean up orphaned sockets on failure
             return False
         finally:
             if 'response' in locals():
                 response.close()
+            gc.collect()  # Always clean up after network call
 
     def refresh_session(self):
         """Refresh the Bluesky session using refresh token"""
         if not self.refresh_jwt:
             return self.authenticate_bluesky()
 
+        gc.collect()  # Clean heap before network call
         refresh_url = "https://bsky.social/xrpc/com.atproto.server.refreshSession"
 
         headers = {
@@ -231,10 +235,12 @@ class BlueskyPoetryBot:
 
         except Exception as e:
             print(f"Refresh error (timeout or network): {e}")
+            gc.collect()  # Clean up orphaned sockets on failure
             return self.authenticate_bluesky()
         finally:
             if 'response' in locals():
                 response.close()
+            gc.collect()  # Always clean up after network call
 
     def sanitize_text(self, text):
         """Replace curly quotes and other problematic characters with ASCII equivalents"""
@@ -266,6 +272,9 @@ class BlueskyPoetryBot:
         if not self.access_jwt:
             print("Not authenticated with Bluesky")
             return False
+
+        # Clean heap before memory-intensive operations
+        gc.collect()
 
         post_url = "https://bsky.social/xrpc/com.atproto.repo.createRecord"
 
@@ -299,6 +308,7 @@ class BlueskyPoetryBot:
 
         try:
             payload = json.dumps(record)
+            gc.collect()  # Clean up after json.dumps before network call
             response = requests.post(post_url, data=payload, headers=headers, timeout=self.HTTP_TIMEOUT)
 
             if response.status_code == 200:
@@ -318,10 +328,12 @@ class BlueskyPoetryBot:
 
         except Exception as e:
             print(f"Post error (timeout or network): {e}")
+            gc.collect()  # Clean up orphaned sockets on failure
             return False
         finally:
             if 'response' in locals():
                 response.close()
+            gc.collect()  # Always clean up after network call
 
     def blink_led(self, times=3):
         """Blink LED to indicate activity"""
