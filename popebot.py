@@ -348,10 +348,12 @@ class BlueskyPoetryBot:
             self.feed_watchdog()
             res = requests.head("http://www.google.com", timeout=self.HTTP_TIMEOUT)
             res.close()
+            gc.collect()  # Clean up after each ping to prevent memory buildup
             print("  (mesh ping ok)")
             return True
         except:
             print("  (mesh ping failed)")
+            gc.collect()
             return False
 
     def sleep_with_heartbeat(self, total_seconds):
