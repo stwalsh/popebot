@@ -456,14 +456,14 @@ class BlueskyPoetryBot:
 def main():
     bot = BlueskyPoetryBot()
 
-    if not bot.connect_wifi():
-        print("Could not connect to WiFi")
-        return
-
-    # Enable watchdog early - protects NTP sync and auth phases
+    # Enable watchdog immediately - protects entire startup sequence
     print("Enabling watchdog timer...")
     bot.wdt = WDT(timeout=8000)
     bot.feed_watchdog()
+
+    if not bot.connect_wifi():
+        print("Could not connect to WiFi")
+        return
 
     if not bot.sync_time():
         print("Could not sync time - refusing to post with wrong clock")
