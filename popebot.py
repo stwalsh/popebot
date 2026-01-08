@@ -126,6 +126,8 @@ class BlueskyPoetryBot:
 
         if wlan.isconnected():
             print(f"WiFi connected: {wlan.ifconfig()[0]}")
+            # Disable power management to prevent mesh dropouts
+            wlan.config(pm=0)
             self.led.on()
             return True
         else:
@@ -363,8 +365,8 @@ class BlueskyPoetryBot:
             self.feed_watchdog()
             self.heartbeat()
 
-            # Active ping every 5 minutes to keep mesh network connection alive
-            if elapsed % 300 == 0 and elapsed > 0:
+            # Active ping every 2 minutes to keep mesh network connection alive
+            if elapsed % 120 == 0 and elapsed > 0:
                 remaining = total_seconds - elapsed
                 print(f"  ... {remaining // 60} min remaining")
                 if not self.active_ping():
