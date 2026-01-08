@@ -4,7 +4,7 @@ import time
 import ntptime
 import network
 import gc
-from machine import Pin
+from machine import Pin, WDT
 
 class BlueskyPoetryBot:
     def __init__(self, config_file='config.json', couplets_file='couplets.txt', state_file='state.json'):
@@ -20,6 +20,9 @@ class BlueskyPoetryBot:
         # Status LED
         self.led = Pin("LED", Pin.OUT)
         self.led.off()
+
+        # Watchdog timer - resets device if not fed within 8 seconds
+        self.wdt = None  # Initialized later in run_continuous
 
         # Load configuration and state
         self.load_config()
@@ -86,7 +89,12 @@ class BlueskyPoetryBot:
     def connect_wifi(self):
         """Connect to WiFi network"""
         wlan = network.WLAN(network.STA_IF)
+
+        # Reset the interface to clear any bad state
+        wlan.active(False)
+        time.sleep(1)
         wlan.active(True)
+        time.sleep(1)
 
         if not wlan.isconnected():
             print(f"Connecting to WiFi: {self.config['wifi_ssid']}")
@@ -279,6 +287,32 @@ class BlueskyPoetryBot:
             self.led.on()
             time.sleep(0.2)
 
+    def heartbeat(self):
+        """Quick single blink to show the bot is alive"""
+        self.led.off()
+        time.sleep(0.05)
+        self.led.on()
+
+    def feed_watchdog(self):
+        """Feed the watchdog timer to prevent reset"""
+        if self.wdt:
+            self.wdt.feed()
+
+    def sleep_with_heartbeat(self, total_seconds):
+        """Sleep in chunks with periodic heartbeat blinks and watchdog feeds"""
+        chunk_seconds = 30  # Wake up every 30 seconds
+        elapsed = 0
+        while elapsed < total_seconds:
+            sleep_time = min(chunk_seconds, total_seconds - elapsed)
+            time.sleep(sleep_time)
+            elapsed += sleep_time
+            self.feed_watchdog()
+            self.heartbeat()
+            # Print progress every 5 minutes
+            if elapsed % 300 == 0:
+                remaining = total_seconds - elapsed
+                print(f"  ... {remaining // 60} min remaining")
+
     def post_next_couplet(self):
         """Post the next couplet from the file"""
         couplet = self.get_next_couplet()
@@ -300,29 +334,43 @@ class BlueskyPoetryBot:
         interval = self.config.get('interval_minutes', 10)
         print(f"Starting continuous mode ({interval} min intervals)")
 
+        # Enable watchdog timer (8 second timeout)
+        # If code hangs for >8s without feeding, device will reset
+        print("Enabling watchdog timer...")
+        self.wdt = WDT(timeout=8000)
+        self.feed_watchdog()
+
         while True:
             try:
+                self.feed_watchdog()
+
                 # Check WiFi connection
                 wlan = network.WLAN(network.STA_IF)
                 if not wlan.isconnected():
                     print("WiFi disconnected, reconnecting...")
                     self.led.off()
                     if not self.connect_wifi():
-                        time.sleep(60)
+                        self.sleep_with_heartbeat(60)
                         continue
                     self.sync_time()
+
+                self.feed_watchdog()
 
                 # Verify time is valid before posting
                 if not self.ensure_time_valid():
                     print("Cannot verify time, skipping this cycle")
-                    time.sleep(60)
+                    self.sleep_with_heartbeat(60)
                     continue
+
+                self.feed_watchdog()
 
                 # Authenticate if needed
                 if not self.access_jwt:
                     if not self.authenticate_bluesky():
-                        time.sleep(60)
+                        self.sleep_with_heartbeat(60)
                         continue
+
+                self.feed_watchdog()
 
                 # Post next couplet
                 couplet = self.get_next_couplet()
@@ -337,18 +385,19 @@ class BlueskyPoetryBot:
                     print("All couplets posted! Stopping.")
                     break
 
+                self.feed_watchdog()
                 gc.collect()
 
                 print(f"Waiting {interval} minutes...")
-                time.sleep(interval * 60)
+                self.sleep_with_heartbeat(interval * 60)
 
             except KeyboardInterrupt:
                 print("\nBot stopped by user")
                 break
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error in main loop: {e}")
                 self.blink_led(10)
-                time.sleep(60)
+                self.sleep_with_heartbeat(60)
 
     def run_single(self):
         """Post a single couplet and exit"""
