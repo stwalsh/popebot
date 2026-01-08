@@ -4,7 +4,11 @@ import time
 import ntptime
 import network
 import gc
+import socket
 from machine import Pin, WDT, reset
+
+# Set global socket timeout to prevent NTP and other socket ops from hanging
+socket.setdefaulttimeout(5)
 
 class BlueskyPoetryBot:
     def __init__(self, config_file='config.json', couplets_file='couplets.txt', state_file='state.json'):
@@ -365,8 +369,8 @@ class BlueskyPoetryBot:
             self.feed_watchdog()
             self.heartbeat()
 
-            # Active ping every 2 minutes to keep mesh network connection alive
-            if elapsed % 120 == 0 and elapsed > 0:
+            # Active ping every 60 seconds to keep mesh network connection alive
+            if elapsed % 60 == 0 and elapsed > 0:
                 remaining = total_seconds - elapsed
                 print(f"  ... {remaining // 60} min remaining")
                 if not self.active_ping():
