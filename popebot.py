@@ -107,10 +107,11 @@ class BlueskyPoetryBot:
         wlan = network.WLAN(network.STA_IF)
 
         # Reset the interface to clear any bad state
+        # Longer delays help mesh networks clear stale sessions
         wlan.active(False)
-        time.sleep(1)
+        time.sleep(3)
         wlan.active(True)
-        time.sleep(1)
+        time.sleep(3)
 
         if not wlan.isconnected():
             print(f"Connecting to WiFi: {self.config['wifi_ssid']}")
