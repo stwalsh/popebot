@@ -343,10 +343,10 @@ class BlueskyPoetryBot:
         interval = self.config.get('interval_minutes', 10)
         print(f"Starting continuous mode ({interval} min intervals)")
 
-        # Enable watchdog timer (30 second timeout)
-        # If code hangs for >30s without feeding, device will reset
+        # Enable watchdog timer (8 second timeout - hardware max is ~8.3s)
+        # If code hangs for >8s without feeding, device will reset
         print("Enabling watchdog timer...")
-        self.wdt = WDT(timeout=30000)
+        self.wdt = WDT(timeout=8000)
         self.feed_watchdog()
 
         while True:
