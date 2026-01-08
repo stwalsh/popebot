@@ -122,10 +122,16 @@ class BlueskyPoetryBot:
 
     def sync_time(self, retries=5):
         """Sync time with NTP server, with retries"""
+        # Try multiple NTP servers in case one is blocked
+        ntp_servers = ['pool.ntp.org', 'time.google.com', 'time.cloudflare.com']
+
         for attempt in range(retries):
+            # Rotate through servers
+            server = ntp_servers[attempt % len(ntp_servers)]
             try:
                 self.feed_watchdog()
-                print(f"Syncing time with NTP (attempt {attempt + 1}/{retries})...")
+                print(f"Syncing time with NTP ({server}, attempt {attempt + 1}/{retries})...")
+                ntptime.host = server
                 ntptime.settime()
                 t = time.gmtime()
                 # Sanity check - year should be 2024 or later
