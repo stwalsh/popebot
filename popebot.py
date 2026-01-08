@@ -103,6 +103,7 @@ class BlueskyPoetryBot:
             # Wait for connection with timeout
             timeout = 20
             while not wlan.isconnected() and timeout > 0:
+                self.feed_watchdog()
                 time.sleep(1)
                 timeout -= 1
 
@@ -123,6 +124,7 @@ class BlueskyPoetryBot:
         """Sync time with NTP server, with retries"""
         for attempt in range(retries):
             try:
+                self.feed_watchdog()
                 print(f"Syncing time with NTP (attempt {attempt + 1}/{retries})...")
                 ntptime.settime()
                 t = time.gmtime()
@@ -135,6 +137,7 @@ class BlueskyPoetryBot:
             except Exception as e:
                 print(f"NTP sync failed: {e}")
             if attempt < retries - 1:
+                self.feed_watchdog()
                 time.sleep(2)
         print("NTP sync failed after all retries")
         return False
@@ -334,10 +337,10 @@ class BlueskyPoetryBot:
         interval = self.config.get('interval_minutes', 10)
         print(f"Starting continuous mode ({interval} min intervals)")
 
-        # Enable watchdog timer (8 second timeout)
-        # If code hangs for >8s without feeding, device will reset
+        # Enable watchdog timer (30 second timeout)
+        # If code hangs for >30s without feeding, device will reset
         print("Enabling watchdog timer...")
-        self.wdt = WDT(timeout=8000)
+        self.wdt = WDT(timeout=30000)
         self.feed_watchdog()
 
         while True:
