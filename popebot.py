@@ -27,6 +27,8 @@ class BlueskyPoetryBot:
         # Failure tracking for hard reset
         self.consecutive_wifi_failures = 0
         self.MAX_WIFI_FAILURES = 5  # Hard reset after this many consecutive failures
+        self.consecutive_ntp_failures = 0
+        self.MAX_NTP_FAILURES = 3  # Reset WiFi after this many NTP failures
 
         # HTTP request timeout (seconds) - must be LESS than watchdog (8s)
         # so requests fail gracefully before watchdog hard-resets
@@ -171,7 +173,18 @@ class BlueskyPoetryBot:
         """Make sure time is valid, re-sync if needed"""
         if not self.time_is_valid():
             print("Clock looks wrong, re-syncing...")
-            return self.sync_time()
+            if self.sync_time():
+                self.consecutive_ntp_failures = 0
+                return True
+            else:
+                self.consecutive_ntp_failures += 1
+                print(f"NTP failure {self.consecutive_ntp_failures}/{self.MAX_NTP_FAILURES}")
+                if self.consecutive_ntp_failures >= self.MAX_NTP_FAILURES:
+                    print("Too many NTP failures, resetting WiFi...")
+                    self.consecutive_ntp_failures = 0
+                    self.led.off()
+                    self.connect_wifi()
+                return False
         return True
 
     def authenticate_bluesky(self):
