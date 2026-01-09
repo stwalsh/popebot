@@ -349,9 +349,9 @@ class BlueskyPoetryBot:
 
             if response.status_code == 200:
                 return True
-            elif response.status_code == 401:
-                # Token expired, try refresh
-                self.log("Token expired (401), refreshing...")
+            elif response.status_code in (400, 401):
+                # Token expired - Bluesky returns 400 with ExpiredToken, not 401
+                self.log(f"Token expired ({response.status_code}), refreshing...")
                 response.close()
                 if self.refresh_session():
                     return self.create_post(text)  # Retry with new token
