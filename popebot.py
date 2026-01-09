@@ -501,6 +501,7 @@ class BlueskyPoetryBot:
                 self.feed_watchdog()
 
                 # Post next couplet
+                old_pos = self.state['position']
                 couplet = self.get_next_couplet()
                 if couplet:
                     self.log(f"Posting couplet (pos={self.state['position']})...")
@@ -509,7 +510,8 @@ class BlueskyPoetryBot:
                         self.log("Post successful")
                         self.blink_led(2)
                     else:
-                        self.log("Post FAILED")
+                        self.log("Post FAILED - will retry same couplet")
+                        self.state['position'] = old_pos  # Restore position to retry
                         self.blink_led(5)
                 else:
                     self.log("All couplets posted! Stopping.")
