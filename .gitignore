@@ -7,3 +7,6 @@ log.txt
 
 # macOS
 .DS_Store
+
+# Claude context
+CLAUDE.md
