@@ -64,10 +64,14 @@ class BlueskyPoetryBot:
             self.state = {'position': 0}
 
     def save_state(self):
-        """Save current position to state file"""
+        """Save current position to state file (atomic write)"""
+        import os
+        tmp_file = self.state_file + '.tmp'
         try:
-            with open(self.state_file, 'w') as f:
+            with open(tmp_file, 'w') as f:
                 json.dump(self.state, f)
+            # Atomic rename - if power fails here, old state.json is intact
+            os.rename(tmp_file, self.state_file)
         except OSError:
             print("Error: Could not save state file")
 
@@ -371,12 +375,12 @@ class BlueskyPoetryBot:
         """Send a tiny request to keep mesh network connection alive"""
         try:
             self.feed_watchdog()
-            res = requests.head("http://www.google.com", timeout=self.HTTP_TIMEOUT)
+            res = requests.head("http://connectivitycheck.gstatic.com/generate_204", timeout=self.HTTP_TIMEOUT)
             res.close()
             gc.collect()  # Clean up after each ping to prevent memory buildup
             print("  (mesh ping ok)")
             return True
-        except:
+        except Exception:
             print("  (mesh ping failed)")
             gc.collect()
             return False
