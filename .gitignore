@@ -3,6 +3,7 @@ config.json
 
 # Runtime state
 state.json
+log.txt
 
 # macOS
 .DS_Store
