@@ -37,9 +37,28 @@ class BlueskyPoetryBot:
         # WiFi connection timeout (seconds) - mesh networks can be slow
         self.WIFI_TIMEOUT = 45
 
+        # Logging (temporary - for diagnostics)
+        self.log_file = 'log.txt'
+        self.log_enabled = True
+
         # Load configuration and state
         self.load_config()
         self.load_state()
+
+    def log(self, msg):
+        """Write timestamped message to log file"""
+        if not self.log_enabled:
+            return
+        try:
+            t = time.gmtime()
+            timestamp = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
+                t[0], t[1], t[2], t[3], t[4], t[5])
+            line = f"[{timestamp}] {msg}\n"
+            print(line.strip())  # Also print to console
+            with open(self.log_file, 'a') as f:
+                f.write(line)
+        except:
+            pass  # Don't let logging break the bot
 
     def load_config(self):
         """Load configuration from JSON file"""
@@ -399,12 +418,13 @@ class BlueskyPoetryBot:
             # Active ping every 60 seconds to keep mesh network connection alive
             if elapsed % 60 == 0 and elapsed > 0:
                 remaining = total_seconds - elapsed
-                print(f"  ... {remaining // 60} min remaining")
                 if not self.active_ping():
                     # Ping failed - force reconnect
-                    print("  Forcing WiFi reconnect...")
+                    self.log(f"Ping failed at {elapsed}s, forcing WiFi reconnect")
                     self.led.off()
                     self.connect_wifi()
+                    self.access_jwt = None  # Force re-auth after reconnect
+                    self.log("Reconnected, cleared auth tokens")
 
     def post_next_couplet(self):
         """Post the next couplet from the file"""
@@ -425,7 +445,7 @@ class BlueskyPoetryBot:
     def run_continuous(self):
         """Run the bot continuously"""
         interval = self.config.get('interval_minutes', 10)
-        print(f"Starting continuous mode ({interval} min intervals)")
+        self.log(f"=== Bot starting, {interval} min intervals ===")
 
         # Enable watchdog if not already enabled (may be initialized in main())
         if not self.wdt:
@@ -440,25 +460,27 @@ class BlueskyPoetryBot:
                 # Check WiFi connection
                 wlan = network.WLAN(network.STA_IF)
                 if not wlan.isconnected():
-                    print("WiFi disconnected, reconnecting...")
+                    self.log("WiFi disconnected, reconnecting...")
                     self.led.off()
                     if not self.connect_wifi():
                         self.consecutive_wifi_failures += 1
-                        print(f"WiFi failure {self.consecutive_wifi_failures}/{self.MAX_WIFI_FAILURES}")
+                        self.log(f"WiFi failure {self.consecutive_wifi_failures}/{self.MAX_WIFI_FAILURES}")
                         if self.consecutive_wifi_failures >= self.MAX_WIFI_FAILURES:
-                            print("Too many WiFi failures, performing hard reset...")
+                            self.log("Too many WiFi failures, performing hard reset...")
                             time.sleep(1)
                             reset()
                         self.sleep_with_heartbeat(60)
                         continue
                     self.consecutive_wifi_failures = 0  # Reset counter on success
                     self.sync_time()
+                    self.access_jwt = None  # Force re-auth after WiFi reconnect
+                    self.log("WiFi reconnected, cleared auth tokens")
 
                 self.feed_watchdog()
 
                 # Verify time is valid before posting
                 if not self.ensure_time_valid():
-                    print("Cannot verify time, skipping this cycle")
+                    self.log("Cannot verify time, skipping this cycle")
                     self.sleep_with_heartbeat(60)
                     continue
 
@@ -466,36 +488,41 @@ class BlueskyPoetryBot:
 
                 # Authenticate if needed
                 if not self.access_jwt:
+                    self.log("No auth token, authenticating...")
                     if not self.authenticate_bluesky():
+                        self.log("Auth failed, will retry next cycle")
                         self.sleep_with_heartbeat(60)
                         continue
+                    self.log("Auth successful")
 
                 self.feed_watchdog()
 
                 # Post next couplet
                 couplet = self.get_next_couplet()
                 if couplet:
-                    print(f"Posting couplet...")
+                    self.log(f"Posting couplet (pos={self.state['position']})...")
                     if self.create_post(couplet):
                         self.save_state()
+                        self.log("Post successful")
                         self.blink_led(2)
                     else:
+                        self.log("Post FAILED")
                         self.blink_led(5)
                 else:
-                    print("All couplets posted! Stopping.")
+                    self.log("All couplets posted! Stopping.")
                     break
 
                 self.feed_watchdog()
                 gc.collect()
 
-                print(f"Waiting {interval} minutes...")
+                self.log(f"Sleeping {interval} minutes...")
                 self.sleep_with_heartbeat(interval * 60)
 
             except KeyboardInterrupt:
-                print("\nBot stopped by user")
+                self.log("Bot stopped by user")
                 break
             except Exception as e:
-                print(f"Error in main loop: {e}")
+                self.log(f"ERROR in main loop: {e}")
                 self.blink_led(10)
                 self.sleep_with_heartbeat(60)
 
