@@ -348,22 +348,21 @@ class BlueskyPoetryBot:
             response = requests.post(post_url, data=payload, headers=headers, timeout=self.HTTP_TIMEOUT)
 
             if response.status_code == 200:
-                print(f"Posted: {text[:50]}...")
                 return True
             elif response.status_code == 401:
                 # Token expired, try refresh
-                print("Token expired, refreshing...")
+                self.log("Token expired (401), refreshing...")
                 response.close()
                 if self.refresh_session():
                     return self.create_post(text)  # Retry with new token
+                self.log("Token refresh failed")
                 return False
             else:
-                print(f"Post failed: {response.status_code}")
-                print(response.text)
+                self.log(f"Post failed: HTTP {response.status_code}")
                 return False
 
         except Exception as e:
-            print(f"Post error (timeout or network): {e}")
+            self.log(f"Post exception: {e}")
             gc.collect()  # Clean up orphaned sockets on failure
             return False
         finally:
