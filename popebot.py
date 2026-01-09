@@ -361,7 +361,7 @@ class BlueskyPoetryBot:
                 self.log(f"Post failed: HTTP {response.status_code}")
                 try:
                     self.log(f"Response: {response.text[:200]}")
-                except:
+                except Exception:
                     pass
                 return False
 
