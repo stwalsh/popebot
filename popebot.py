@@ -39,7 +39,7 @@ class BlueskyPoetryBot:
 
         # Logging (temporary - for diagnostics)
         self.log_file = 'log.txt'
-        self.log_enabled = True
+        self.log_enabled = False
 
         # Load configuration and state
         self.load_config()
